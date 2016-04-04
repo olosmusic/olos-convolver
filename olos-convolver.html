@@ -1,0 +1,160 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../paper-slider/paper-slider.html">
+<link rel="import" href="../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../paper-dropdown-menu/paper-dropdown-menu.html">
+<!-- <link rel="import" href="../paper-dropdown/paper-dropdown.html"> -->
+<link rel="import" href="../paper-item/paper-item.html">
+<!-- <link rel="import" href="../core-menu/core-menu.html"> -->
+<!-- <link rel="import" href="../font-roboto/roboto.html"> -->
+
+<!--
+olos-convolver is an convolver
+##### Example
+
+
+@element olos-convolver
+@blurb 
+@status alpha
+@homepage http://olosmusic.github.io/olos-convolver
+-->
+  <link rel="import" href="../iron-flex-layout/iron-flex-layout.html">
+<dom-module id="olos-convolver">
+  <style>
+    /* TODO(polyup): For speed, consider reworking these styles with .classes
+                     and #ids rather than [attributes].
+    */
+    [hidden] {
+      display: none !important;
+    }
+  </style>
+  <link rel="import" type="css" href="olos-convolver.css">
+  <template>
+
+    <div id="controls" style="height:50px">
+      <paper-icon-button on-click="clickInput" icon="file-upload" label="upload file"></paper-icon-button>
+      <input is="paper-input" type="file" hidden="" id="sfInput">
+  </div>
+  </template>
+  <script>
+    (function (params) {
+      Polymer({
+        is: 'olos-convolver',
+        properties: {
+          // inputs and outputs
+          inputAudio: {
+            value: null,
+            notify: true
+          },
+          output: {
+            value: null,
+            notify: true
+          },
+          publicMethods: {
+            type: Array,
+            value: function () {
+              return ['set'];
+            }
+          },
+          rootfolder: {
+            type: String,
+            value: '../olos-convolver/'
+          }
+        },
+        ready: function () {
+          var self = this;
+          self._audioContext = audioContext;
+          self.playing = false;
+          self.inputAudio = self.convolver = self.output = audioContext.createConvolver();
+          self.$.sfInput.onchange = function (e) {
+            self._handleFileSelect(e, self);
+          };
+
+          self.getFile('../_audio/concrete-tunnel.mp3');
+        },
+        clickInput: function () {
+          this.$.sfInput.click();
+        },
+        getFile: function(path) {
+          var self = this;
+          var path = self.resolveUrl(path);
+          var request = new XMLHttpRequest();
+
+          request.open('GET', path, true);
+          request.responseType = 'arraybuffer';
+
+          request.onload = function() {
+            var audioData = request.response;
+            self._decodeArrayBuffer(audioData);
+          }
+          request.send();
+        },
+        // Handle File Loading
+        _handleFileSelect: function (e, s) {
+          var self = s;
+          var file = e.path[0].files[0];
+          if (file && file.type && file.type.indexOf('audio') === -1) {
+            console.log('Error: not a valid audio file');
+            return;
+          }
+          self.reader = new FileReader();
+          self.reader.onload = function (b) {
+            self._loadSoundSuccess(b);
+          };
+          self.reader.onerror = function (e) {
+            self._loadSoundError(e);
+          };
+          // self.reader.addEventListener('onerror', );
+          self.reader.readAsArrayBuffer(file);
+        },
+        _loadSoundSuccess: function (s) {
+          var self = this;
+          var arrayBuffer = s.target.result;
+          self._decodeArrayBuffer(arrayBuffer);
+          // Remove event listeners and clear the FileReader.
+          try {
+            self.reader.removeEventListener('load', self._loadSoundSuccess);
+            self.reader.removeEventListener('error', self._loadSoundError);
+            self.reader = undefined;
+          } catch (e) {
+            console.log('error removing methods');
+          }
+          ;
+        },
+        _loadSoundError: function (e) {
+          console.log('Error decoding audio: ' + e.message);
+          // Remove event listeners and clear the FileReader.
+          try {
+            self.reader.removeEventListener('load', self._loadSoundSuccess);
+            self.reader.removeEventListener('error', self._loadSoundError);
+            self.reader = undefined;
+          } catch (e) {
+          }
+          ;
+        },
+        _decodeArrayBuffer: function (arrayBuffer) {
+          var self = this;
+          audioContext.decodeAudioData(arrayBuffer, function (audioBuffer) {
+            self.output.buffer = audioBuffer;
+            console.log('Success loading audio buffer');
+          }, function (error) {
+            console.log('Error decoding audio: ' + error.message);
+          });
+        },
+        // TO DO: animate!
+        animate: function () {
+        },
+        dispose: function () {
+          var nodes = ['output'];
+          for (var i = 0; i < nodes.length; i++) {
+            try {
+              var node = self[nodes[i]];
+              node.disconnect();
+              node = null;
+            } catch (e) {
+            }
+          }
+        }
+      });
+    }());
+  </script>
+</dom-module>
